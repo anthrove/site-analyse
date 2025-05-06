@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/anthrove/site-analyse/internal/analyze"
 	"github.com/anthrove/site-analyse/pkg/config"
 	"github.com/anthrove/site-analyse/pkg/util"
 	"github.com/caarlos0/env/v11"
@@ -28,10 +29,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = util.DownloadE6File(context.Background(), minioClient, s3Config.BucketName, "tags-2025-05-06.csv.gz")
+	name, err := util.DownloadE6File(context.Background(), minioClient, s3Config.BucketName, "tags-2025-05-06.csv.gz")
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	analyze.Tags(context.Background(), name)
 }
