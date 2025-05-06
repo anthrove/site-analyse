@@ -1,6 +1,7 @@
-package e6
+package e621
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"

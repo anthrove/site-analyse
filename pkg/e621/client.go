@@ -1,4 +1,4 @@
-package e6
+package e621
 
 import (
 	"fmt"

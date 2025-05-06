@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"errors"
+	"github.com/anthrove/site-analyse/pkg/e621"
 	"github.com/minio/minio-go/v7"
 	log "github.com/sirupsen/logrus"
 	"os"
