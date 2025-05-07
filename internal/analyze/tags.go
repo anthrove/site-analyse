@@ -4,11 +4,29 @@ import (
 	"context"
 	"github.com/anthrove/site-analyse/pkg/object"
 	"github.com/anthrove/site-analyse/pkg/util"
-	log "github.com/sirupsen/logrus"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
 	"os"
 )
 
-func Tags(ctx context.Context, fileName string) error {
+var (
+	TagsTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "tags_total",
+		Help: "Total number of tags processed",
+	})
+
+	TagsCategory = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "tags_category_count",
+		Help: "Number of tags per category",
+	}, []string{"category"})
+
+	TagsPostCountBuckets = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "tags_postcount_bucket",
+		Help: "Number of tags per post count bucket",
+	}, []string{"bucket"})
+)
+
+func Tags(ctx context.Context, promPusher *push.Pusher, fileName string) error {
 	//date := fileName[5 : len(fileName)-4]
 
 	file, err := os.Open(fileName)
@@ -88,26 +106,30 @@ func Tags(ctx context.Context, fileName string) error {
 		}
 	}
 
-	log.WithField("total_tags", size).Info("Total tags processed")
-	log.WithField("general_tags", generalSize).Info("General category tags count")
-	log.WithField("artist_tags", artistSize).Info("Artist category tags count")
-	log.WithField("contributor_tags", contributorSize).Info("Contributor category tags count")
-	log.WithField("copyright_tags", copyrightSize).Info("Copyright category tags count")
-	log.WithField("character_tags", characterSize).Info("Character category tags count")
-	log.WithField("species_tags", speciesSize).Info("Species category tags count")
-	log.WithField("invalid_tags", invalidSize).Info("Invalid category tags count")
-	log.WithField("meta_tags", metaSize).Info("Meta category tags count")
-	log.WithField("lore_tags", loreSize).Info("Lore category tags count")
-	log.WithField("unknown_tags", unknownSize).Info("Unknown category tags count")
+	TagsTotal.Set(float64(size))
 
-	log.WithField("postcount_0", tagSizeEmpty).Info("Tags with PostCount == 0")
-	log.WithField("postcount_1_9", tagSize0_9).Info("Tags with PostCount between 1 and 9")
-	log.WithField("postcount_11_99", tagSize10_99).Info("Tags with PostCount between 11 and 99")
-	log.WithField("postcount_101_999", tagSize100_999).Info("Tags with PostCount between 101 and 999")
-	log.WithField("postcount_1001_9999", tagSize1000_9999).Info("Tags with PostCount between 1001 and 9999")
-	log.WithField("postcount_10001_99999", tagSize10000_99999).Info("Tags with PostCount between 10001 and 99999")
-	log.WithField("postcount_100001_999999", tagSize100000_999999).Info("Tags with PostCount between 100001 and 999999")
-	log.WithField("postcount_xxl", tagSizeXXL).Info("Tags with PostCount outside defined ranges (XXL)")
+	TagsCategory.WithLabelValues("general").Set(float64(generalSize))
+	TagsCategory.WithLabelValues("artist").Set(float64(artistSize))
+	TagsCategory.WithLabelValues("contributor").Set(float64(contributorSize))
+	TagsCategory.WithLabelValues("copyright").Set(float64(copyrightSize))
+	TagsCategory.WithLabelValues("character").Set(float64(characterSize))
+	TagsCategory.WithLabelValues("species").Set(float64(speciesSize))
+	TagsCategory.WithLabelValues("invalid").Set(float64(invalidSize))
+	TagsCategory.WithLabelValues("meta").Set(float64(metaSize))
+	TagsCategory.WithLabelValues("lore").Set(float64(loreSize))
+	TagsCategory.WithLabelValues("unknown").Set(float64(unknownSize))
 
+	TagsPostCountBuckets.WithLabelValues("0").Set(float64(tagSizeEmpty))
+	TagsPostCountBuckets.WithLabelValues("1_9").Set(float64(tagSize0_9))
+	TagsPostCountBuckets.WithLabelValues("11_99").Set(float64(tagSize10_99))
+	TagsPostCountBuckets.WithLabelValues("101_999").Set(float64(tagSize100_999))
+	TagsPostCountBuckets.WithLabelValues("1001_9999").Set(float64(tagSize1000_9999))
+	TagsPostCountBuckets.WithLabelValues("10001_99999").Set(float64(tagSize10000_99999))
+	TagsPostCountBuckets.WithLabelValues("100001_999999").Set(float64(tagSize100000_999999))
+	TagsPostCountBuckets.WithLabelValues("xxl").Set(float64(tagSizeXXL))
+
+	promPusher.Collector(TagsTotal)
+	promPusher.Collector(TagsCategory)
+	promPusher.Collector(TagsPostCountBuckets)
 	return nil
 }

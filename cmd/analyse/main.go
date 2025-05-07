@@ -8,6 +8,7 @@ import (
 	"github.com/caarlos0/env/v11"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/prometheus/client_golang/prometheus/push"
 	log "github.com/sirupsen/logrus"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -17,6 +18,11 @@ func main() {
 
 	var s3Config config.S3StorageConfig
 	if err := env.Parse(&s3Config); err != nil {
+		log.Fatal(err)
+	}
+
+	var promConfig config.PrometheusConfig
+	if err := env.Parse(&promConfig); err != nil {
 		log.Fatal(err)
 	}
 
@@ -35,5 +41,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	analyze.Tags(context.Background(), name)
+	promPusher := push.New(promConfig.URL, "site_analytics").BasicAuth(promConfig.Username, promConfig.Password)
+
+	analyze.Tags(context.Background(), promPusher, name)
+
 }
