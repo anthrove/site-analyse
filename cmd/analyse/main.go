@@ -35,7 +35,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	name, err := util.DownloadE6File(context.Background(), minioClient, s3Config.BucketName, "tags-2025-05-06.csv.gz")
+	name, err := util.DownloadE6File(context.Background(), minioClient, s3Config.BucketName, "posts-2025-05-06.csv.gz")
 
 	if err != nil {
 		log.Fatalln(err)
@@ -43,6 +43,6 @@ func main() {
 
 	promPusher := push.New(promConfig.URL, "site_analytics").BasicAuth(promConfig.Username, promConfig.Password)
 
-	analyze.Tags(context.Background(), promPusher, name)
+	analyze.Posts(context.Background(), promPusher, name)
 
 }
