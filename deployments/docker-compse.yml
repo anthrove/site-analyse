@@ -1,0 +1,61 @@
+services:
+  e621analysis:
+    build:
+      context: ../
+      dockerfile: ./build/package/Dockerfile
+    image: anthrove/site-analysis-e621
+    environment:
+      S3_ENDPOINT: minio:9000
+      S3_ACCESS_KEY: minio-user
+      S3_SECRET_KEY: minio-password
+      S3_SSL: false
+      S3_BUCKET_NAME: e621bucket
+      PROMETHEUS_URL: prometheus:9090
+      PROMETHEUS_USERNAME: prometheus
+      PROMETHEUS_PASSWORD: prometheus
+  
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-05-28T17-19-04Z
+    environment:
+      MINIO_ROOT_USER: minio-user
+      MINIO_ROOT_PASSWORD: minio-password
+      MINIO_UPDATE: off
+    entrypoint: >
+      /bin/sh -c "
+        isAlive() { curl -sf http://127.0.0.1:9000/minio/health/live; }    # check if Minio is alive
+        minio $0 "$@" --quiet & echo $! > /tmp/minio.pid                   # start Minio in the background
+        while ! isAlive; do sleep 0.1; done                                # wait until Minio is alive
+        mc alias set minio http://127.0.0.1:9000 minio-user minio-password # setup Minio client
+        mc mb minio/e621bucket || true                                     # create a test bucket
+        mc anonymous set public minio/e621bucket                           # make the test bucket public
+        kill -s INT $(cat /tmp/minio.pid) && rm /tmp/minio.pid             # stop Minio
+        while isAlive; do sleep 0.1; done                                  # wait until Minio is stopped
+        exec minio $0 "$@"                                                 # start Minio in the foreground
+      "
+    command: server /data --json --console-address ':9001'
+    ports: [
+      '9001:9001/tcp',
+      '9000:9000/tcp'
+      ]
+    volumes: [minio-data:/data:rw]
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:9000/minio/health/live']
+      interval: 10s
+      start_interval: 1s
+      start_period: 10s
+    security_opt: [no-new-privileges:true]
+  
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    ports:
+      - 9090:9090
+  
+  prom-pushgateway:
+    image: prom/pushgateway
+    ports: 
+      - 9091:9091
+
+volumes:
+  minio-data: {}
