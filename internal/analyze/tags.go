@@ -2,32 +2,23 @@ package analyze
 
 import (
 	"context"
+	"github.com/InfluxCommunity/influxdb3-go/v2/influxdb3"
 	"github.com/anthrove/site-analyse/pkg/object"
 	"github.com/anthrove/site-analyse/pkg/util"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/push"
 	"os"
+	"strings"
+	"time"
 )
 
-var (
-	TagsTotal = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "tags_total",
-		Help: "Total number of tags processed",
-	})
+func Tags(ctx context.Context, influxClient *influxdb3.Client, fileName string) error {
+	rightSide := strings.SplitN(fileName, "-", 2)[1]
+	leftSide := strings.SplitN(rightSide, ".", 2)[0]
 
-	TagsCategory = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "tags_category_count",
-		Help: "Number of tags per category",
-	}, []string{"category"})
+	date, err := time.Parse("2006-01-02", leftSide)
 
-	TagsPostCountBuckets = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "tags_postcount_bucket",
-		Help: "Number of tags per post count bucket",
-	}, []string{"bucket"})
-)
-
-func Tags(ctx context.Context, promPusher *push.Pusher, fileName string) error {
-	//date := fileName[5 : len(fileName)-4]
+	if err != nil {
+		return err
+	}
 
 	file, err := os.Open(fileName)
 
@@ -106,30 +97,44 @@ func Tags(ctx context.Context, promPusher *push.Pusher, fileName string) error {
 		}
 	}
 
-	TagsTotal.Set(float64(size))
+	tagsTotalPoint := influxdb3.NewPointWithMeasurement("tags_total").
+		SetTag("site", "e621.net").
+		SetIntegerField("total", int64(size)).
+		SetTimestamp(date)
+	tagsCategoryPoint := influxdb3.NewPointWithMeasurement("tags_category_count").
+		SetTag("site", "e621.net").
+		SetIntegerField("general", int64(generalSize)).
+		SetIntegerField("artist", int64(artistSize)).
+		SetIntegerField("contributor", int64(contributorSize)).
+		SetIntegerField("copyright", int64(copyrightSize)).
+		SetIntegerField("character", int64(characterSize)).
+		SetIntegerField("species", int64(speciesSize)).
+		SetIntegerField("invalid", int64(invalidSize)).
+		SetIntegerField("meta", int64(metaSize)).
+		SetIntegerField("lore", int64(loreSize)).
+		SetIntegerField("unknown", int64(unknownSize)).
+		SetTimestamp(date)
+	tagsPostCountPoint := influxdb3.NewPointWithMeasurement("tags_post_count").
+		SetTag("site", "e621.net").
+		SetUIntegerField("0", uint64(tagSizeEmpty)).
+		SetUIntegerField("1_9", uint64(tagSize0_9)).
+		SetUIntegerField("11_99", uint64(tagSize10_99)).
+		SetUIntegerField("101_999", uint64(tagSize100_999)).
+		SetUIntegerField("1001_9999", uint64(tagSize1000_9999)).
+		SetUIntegerField("10001_99999", uint64(tagSize10000_99999)).
+		SetUIntegerField("100001_999999", uint64(tagSize100000_999999)).
+		SetUIntegerField("xxl", uint64(tagSizeXXL)).
+		SetTimestamp(date)
 
-	TagsCategory.WithLabelValues("general").Set(float64(generalSize))
-	TagsCategory.WithLabelValues("artist").Set(float64(artistSize))
-	TagsCategory.WithLabelValues("contributor").Set(float64(contributorSize))
-	TagsCategory.WithLabelValues("copyright").Set(float64(copyrightSize))
-	TagsCategory.WithLabelValues("character").Set(float64(characterSize))
-	TagsCategory.WithLabelValues("species").Set(float64(speciesSize))
-	TagsCategory.WithLabelValues("invalid").Set(float64(invalidSize))
-	TagsCategory.WithLabelValues("meta").Set(float64(metaSize))
-	TagsCategory.WithLabelValues("lore").Set(float64(loreSize))
-	TagsCategory.WithLabelValues("unknown").Set(float64(unknownSize))
+	err = influxClient.WritePoints(ctx, []*influxdb3.Point{
+		tagsTotalPoint,
+		tagsCategoryPoint,
+		tagsPostCountPoint,
+	})
 
-	TagsPostCountBuckets.WithLabelValues("0").Set(float64(tagSizeEmpty))
-	TagsPostCountBuckets.WithLabelValues("1_9").Set(float64(tagSize0_9))
-	TagsPostCountBuckets.WithLabelValues("11_99").Set(float64(tagSize10_99))
-	TagsPostCountBuckets.WithLabelValues("101_999").Set(float64(tagSize100_999))
-	TagsPostCountBuckets.WithLabelValues("1001_9999").Set(float64(tagSize1000_9999))
-	TagsPostCountBuckets.WithLabelValues("10001_99999").Set(float64(tagSize10000_99999))
-	TagsPostCountBuckets.WithLabelValues("100001_999999").Set(float64(tagSize100000_999999))
-	TagsPostCountBuckets.WithLabelValues("xxl").Set(float64(tagSizeXXL))
+	if err != nil {
+		return err
+	}
 
-	promPusher.Collector(TagsTotal)
-	promPusher.Collector(TagsCategory)
-	promPusher.Collector(TagsPostCountBuckets)
 	return nil
 }

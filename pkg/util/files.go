@@ -1,6 +1,7 @@
 package util
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/csv"
 	"errors"
@@ -15,18 +16,17 @@ import (
 )
 
 func DownloadE6File(ctx context.Context, minioClient *minio.Client, bucketName string, filename string) (string, error) {
-	name := filename[:len(filename)-3]
 
-	if stat, err := os.Stat(name); err == nil {
+	if stat, err := os.Stat(filename); err == nil {
 		// path/to/whatever exists
 		if stat.IsDir() {
 			return "", errors.New("filename is a directory")
 		} else {
-			return name, nil
+			return filename, nil
 		}
 	}
 
-	err := minioClient.FGetObject(ctx, bucketName, name, name, minio.GetObjectOptions{})
+	err := minioClient.FGetObject(ctx, bucketName, filename, filename, minio.GetObjectOptions{})
 
 	if err == nil {
 		return "", nil
@@ -35,27 +35,33 @@ func DownloadE6File(ctx context.Context, minioClient *minio.Client, bucketName s
 
 	log.WithError(err).WithField("filename", filename).Warn("Failed to download file from s3 storage")
 
-	err = e621.DownloadData(ctx, filename, name)
+	err = e621.DownloadFile(ctx, filename, filename)
 	if err != nil {
 		return "", err
 	}
 
-	_, err = minioClient.FPutObject(ctx, bucketName, name, name, minio.PutObjectOptions{})
+	_, err = minioClient.FPutObject(ctx, bucketName, filename, filename, minio.PutObjectOptions{})
 
 	if err != nil {
 		return "", err
 	}
 
-	return name, nil
+	return filename, nil
 }
 
 func GetStreamingData[T any](ctx context.Context, rc io.Reader) chan T {
 	ch := make(chan T)
 	go func() {
 		inputChan := make(chan []string)
-		r := csv.NewReader(rc)
+		uncompressedStream, err := gzip.NewReader(rc)
+		defer uncompressedStream.Close()
+
+		if err != nil {
+			panic(err)
+		}
+
+		r := csv.NewReader(uncompressedStream)
 		var header []string
-		var err error
 		if header, err = r.Read(); err != nil {
 			log.Fatal(err)
 		}
@@ -83,7 +89,6 @@ func GetStreamingData[T any](ctx context.Context, rc io.Reader) chan T {
 
 			inputChan <- rec
 		}
-		log.Info("Input finished")
 	}()
 	return ch
 }
