@@ -10,13 +10,20 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	log "github.com/sirupsen/logrus"
-	"time"
+	"os"
 	_ "time/tzdata"
 
 	_ "github.com/joho/godotenv/autoload"
 )
 
 func main() {
+	arguments := os.Args
+
+	if len(arguments) == 1 {
+		log.Error("You need to specify a date (2006-01-02) to analyse")
+		return
+	}
+
 	var s3Config config.S3StorageConfig
 	if err := env.Parse(&s3Config); err != nil {
 		log.Fatal(err)
@@ -59,7 +66,7 @@ func main() {
 		"pools": analyze.Pools,
 	}
 
-	dateStr := time.Now().Format("2006-01-02")
+	dateStr := os.Args[1]
 	for module, function := range analzyeModules {
 		log.WithField("module", module).Info("Starting analyzing")
 		fileName := module + "-" + dateStr + ".csv.gz"
