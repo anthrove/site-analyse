@@ -145,7 +145,6 @@ func parseRecord[T any](header []string, input chan []string) chan T {
 			}
 			channel <- e
 		}
-		log.Info("parsing ended")
 	}()
 	return channel
 }

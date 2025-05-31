@@ -11,8 +11,8 @@ import (
 )
 
 func Tags(ctx context.Context, influxClient *influxdb3.Client, fileName string) error {
-	rightSide := strings.SplitN(fileName, "-", 2)[1]
-	leftSide := strings.SplitN(rightSide, ".", 2)[0]
+	_, rightSide, _ := strings.Cut(fileName, "-")
+	leftSide, _, _ := strings.Cut(rightSide, ".")
 
 	date, err := time.Parse("2006-01-02", leftSide)
 
