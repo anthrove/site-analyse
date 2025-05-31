@@ -107,7 +107,7 @@ func Posts(ctx context.Context, influxClient *influxdb3.Client, fileName string)
 			}
 
 			// not the best method but it's an idea
-			if updateTime.Add(time.Hour * 24).After(time.Now()) {
+			if updateTime.Add(time.Hour * 24).After(date) {
 				updatedSize++
 			}
 		}
