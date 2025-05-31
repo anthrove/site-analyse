@@ -19,6 +19,7 @@ func Pools(ctx context.Context, influxClient *influxdb3.Client, fileName string)
 	date, err := time.Parse("2006-01-02", leftSide)
 
 	if err != nil {
+		log.WithError(err).WithField("left_side", leftSide).WithField("right_side", rightSide).WithField("file_name", fileName).Error("Failed to parse filename to date")
 		return err
 	}
 
