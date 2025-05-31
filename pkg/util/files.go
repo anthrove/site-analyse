@@ -29,7 +29,7 @@ func DownloadE6File(ctx context.Context, minioClient *minio.Client, bucketName s
 	err := minioClient.FGetObject(ctx, bucketName, filename, filename, minio.GetObjectOptions{})
 
 	if err == nil {
-		return "", nil
+		return filename, nil
 	}
 	// Problem downloading file from s3 storage
 
@@ -37,13 +37,13 @@ func DownloadE6File(ctx context.Context, minioClient *minio.Client, bucketName s
 
 	err = e621.DownloadFile(ctx, filename, filename)
 	if err != nil {
-		return "", err
+		return filename, err
 	}
 
 	_, err = minioClient.FPutObject(ctx, bucketName, filename, filename, minio.PutObjectOptions{})
 
 	if err != nil {
-		return "", err
+		return filename, err
 	}
 
 	return filename, nil
