@@ -11,6 +11,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	log "github.com/sirupsen/logrus"
 	"time"
+	_ "time/tzdata"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -68,7 +69,7 @@ func main() {
 			log.Fatalln(err)
 		}
 		log.WithField("module", module).WithField("file_name", fileName).Info("File downloaded")
-		
+
 		err = function(context.Background(), client, name)
 		if err != nil {
 			log.Fatalln(err)
