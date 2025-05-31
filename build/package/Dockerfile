@@ -16,4 +16,4 @@ WORKDIR /
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /usr/src/app/app ./
 
-CMD ["/app"]
+ENTRYPOINT ["/app"]
